@@ -1,43 +1,74 @@
 import { Router } from 'express';
-import { getPacsInfo, getPatients } from '../controllers/pacsController';
+import { 
+  getPacsInfo, 
+  getPatients, 
+  getStudies, 
+  getWadoImage 
+} from '../controllers/pacsController';
 
 const router = Router();
 
 /**
  * @swagger
- * tags:
- *   - name: PACS               
- *     description: Endpoints de comunicación con Orthanc  // 
- */
-
-/**
- * @swagger
- * /pacs/system:
- *  get:
- *    summary: Obtiene estado del servidor Orthanc
- *    tags:
- *      - PACS
- *    responses:
- *      200:
- *        description: Información del sistema
- *      503:
- *        description: Error de conexión con Orthanc
+ * /api/pacs/system:
+ *   get:
+ *     summary: Obtiene estado del servidor Orthanc
+ *     tags:
+ *       - PACS
+ *     responses:
+ *       200:
+ *         description: Información del sistema
+ *       503:
+ *         description: Error de conexión con Orthanc
  */
 router.get('/system', getPacsInfo);
 
 /**
  * @swagger
- * /pacs/patients:
- *  get:
- *    summary: Lista todos los pacientes
- *    tags:
- *      - PACS
- *    responses:
- *      200:
- *        description: Lista de IDs de pacientes
- *      500:
- *        description: Error del servidor
+ * /api/pacs/patients:
+ *   get:
+ *     summary: Lista todos los pacientes
+ *     tags:
+ *       - PACS
+ *     responses:
+ *       200:
+ *         description: Lista de pacientes expandida
  */
 router.get('/patients', getPatients);
+
+/**
+ * @swagger
+ * /api/pacs/studies:
+ *   get:
+ *     summary: Lista todos los estudios disponibles en el PACS
+ *     tags:
+ *       - PACS
+ *     responses:
+ *       200:
+ *         description: Lista de estudios expandida
+ */
+router.get('/studies', getStudies);
+
+/**
+ * @swagger
+ * /api/pacs/wado/instance/{instanceId}:
+ *   get:
+ *     summary: Obtiene el archivo DICOM binario mediante proxy
+ *     tags:
+ *       - PACS
+ *     parameters:
+ *       - in: path
+ *         name: instanceId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de la instancia DICOM en Orthanc
+ *     responses:
+ *       200:
+ *         description: Archivo DICOM (binary stream)
+ *       404:
+ *         description: Instancia no encontrada
+ */
+router.get('/wado/instance/:instanceId', getWadoImage);
 
 export default router;

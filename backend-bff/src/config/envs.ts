@@ -1,20 +1,22 @@
-import dotenv from 'dotenv';
+import 'dotenv/config';
 
-dotenv.config();
-
-// Validación estricta:(Fail Fast)
-if (!process.env.ORTHANC_URL) {
-    throw new Error(" Error Crítico: Falta la variable ORTHANC_URL en el archivo .env");
-}
-
+/**
+ * Este objeto centraliza todas las variables de entorno.
+ * Si una variable no existe en el .env, definimos un valor por defecto (fallback).
+ */
 export const envs = {
-    port: process.env.PORT || 3000,
-    nodeEnv: process.env.NODE_ENV || 'development',
-    orthanc: {
-        url: process.env.ORTHANC_URL,
-        user: process.env.ORTHANC_USER || 'orthanc',
-        pass: process.env.ORTHANC_PASS || 'orthanc',
-    },
-    // Definimos quién puede pedir datos (Seguridad CORS)
-    corsOrigins: process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : ['*']
+  port: parseInt(process.env.PORT || '3000'),
+  nodeEnv: process.env.NODE_ENV || 'development',
+  
+  // Configuración de conexión al PACS Orthanc
+  orthanc: {
+    url: process.env.ORTHANC_URL || 'http://localhost:8042',
+    user: process.env.ORTHANC_USER || 'orthanc',
+    password: process.env.ORTHANC_PASSWORD || 'orthanc',
+  },
+
+  // Llave de seguridad para peticiones entre Front y Back
+  apiKey: process.env.API_KEY || 'biobox_default_secret',
+  
+  logLevel: process.env.LOG_LEVEL || 'info',
 };

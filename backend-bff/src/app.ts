@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import pacsRoutes from './routes/pacsRoutes';
 import swaggerUi from 'swagger-ui-express';
-import { swaggerSpec } from './config/swagger';
+import swaggerSpec from './config/swagger';
 import logger from './utils/logger';
 import { errorHandler } from './middlewares/errorHandler';
 

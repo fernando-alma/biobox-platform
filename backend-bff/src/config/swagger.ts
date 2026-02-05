@@ -1,25 +1,44 @@
-import swaggerJSDoc from 'swagger-jsdoc';
+import swaggerJsdoc from 'swagger-jsdoc';
+import { envs } from './envs';
 
-const options = {
+/**
+ * Configuración maestra de Swagger (OpenAPI 3.0)
+ * RUTA: backend-bff/src/config/swagger.ts
+ */
+const options: swaggerJsdoc.Options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Biobox API Gateway',
+      title: 'BioBox Platform API',
       version: '1.0.0',
-      description: 'Documentación oficial de la API intermedia (BFF) para el visor DICOM.',
-      contact: {
-        name: 'Equipo de Desarrollo Biobox Med',
-      },
+      description: 'API BFF para la integración del Visor DICOM con el PACS Orthanc',
     },
     servers: [
       {
-        url: 'http://localhost:3000/api',
-        description: 'Servidor de Desarrollo Local',
+        url: `http://localhost:${envs.port}`,
+        description: 'Servidor Local de Desarrollo',
       },
     ],
+    tags: [
+      {
+        name: 'PACS',
+        description: 'Endpoints de orquestación con el servidor Orthanc',
+      },
+    ],
+    components: {
+      securitySchemes: {
+        ApiKeyAuth: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'x-api-key',
+        },
+      },
+    },
   },
-  
-  apis: ['./src/routes/*.ts', './src/controllers/*.ts'], 
+  apis: ['./src/routes/*.ts'], 
 };
 
-export const swaggerSpec = swaggerJSDoc(options);
+const swaggerSpec = swaggerJsdoc(options);
+
+// Exportación por defecto para simplificar el import
+export default swaggerSpec;

@@ -1,51 +1,62 @@
 import axios from 'axios';
-import dotenv from 'dotenv';
+import { envs } from '../config/envs';
+import logger from '../utils/logger';
 
-dotenv.config();
-
-// Configuración base de Axios para Orthanc
-const orthancApi = axios.create({
-    baseURL: process.env.ORTHANC_URL || 'http://localhost:8042',
+export class OrthancService {
+  // Instancia de axios pre-configurada con Auth de Orthanc
+  private static client = axios.create({
+    baseURL: envs.orthanc.url,
     auth: {
-        username: process.env.ORTHANC_USER || 'orthanc',
-        password: process.env.ORTHANC_PASS || 'orthanc'
+      username: envs.orthanc.user,
+      password: envs.orthanc.password,
     },
-    timeout: 10000, // 10 segundos máximo de espera
-});
+    timeout: 15000, // 15 segundos para imágenes pesadas
+  });
 
-export const OrthancService = {
-    // 1. Verificar si Orthanc está vivo
-    async getSystemInfo() {
-        try {
-            const response = await orthancApi.get('/system');
-            return response.data;
-        } catch (error: any) {
-            console.error('Error conectando a Orthanc:', error.message);
-            throw new Error('El servicio de imágenes no responde');
-        }
-    },
+  /**
+   * Obtiene información del sistema para verificar la conexión
+   */
+  static async getSystemInfo() {
+    const { data } = await this.client.get('/system');
+    return data;
+  }
 
-    // 2. Listar todos los pacientes
-    async getAllPatients() {
-        try {
-            // Orthanc devuelve un array de IDs, luego hay que pedir detalles si queremos nombres
-            const response = await orthancApi.get('/patients'); 
-            return response.data;
-        } catch (error: any) {
-            throw new Error(`Error obteniendo pacientes: ${error.message}`);
-        }
-    },
-
-    // 3. Proxy para WADO (La magia para el visor)
-    // Esto toma el "stream" de la imagen y se lo pasa al frontend
-    async getWadoImage(instanceId: string) {
-        try {
-            const response = await orthancApi.get(`/instances/${instanceId}/file`, {
-                responseType: 'arraybuffer' // Importante: Pedimos datos binarios (la imagen real)
-            });
-            return response.data;
-        } catch (error: any) {
-            throw new Error(`Error obteniendo imagen DICOM: ${error.message}`);
-        }
+  /**
+   * OPTIMIZACIÓN N+1:
+   * Usamos '?expand' para que Orthanc devuelva todos los detalles
+   * de los estudios en una sola llamada HTTP, en lugar de una por cada ID.
+   */
+  static async getAllStudies() {
+    try {
+      logger.info('Solicitando lista de estudios expandida a Orthanc...');
+      const { data } = await this.client.get('/studies?expand');
+      return data;
+    } catch (error) {
+      logger.error('Error al obtener estudios de Orthanc:', error);
+      throw error;
     }
-};
+  }
+
+  /**
+   * Obtiene la lista de pacientes de forma expandida (una sola petición)
+   */
+  static async getAllPatients() {
+    try {
+      logger.info('Solicitando lista de pacientes expandida a Orthanc...');
+      const { data } = await this.client.get('/patients?expand');
+      return data;
+    } catch (error) {
+      logger.error('Error al obtener pacientes de Orthanc:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Proxy binario: Obtiene el archivo DICOM como un flujo de datos (stream)
+   */
+  static async getInstanceFileStream(instanceId: string) {
+    return await this.client.get(`/instances/${instanceId}/file`, {
+      responseType: 'stream',
+    });
+  }
+}
