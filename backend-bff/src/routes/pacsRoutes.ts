@@ -5,8 +5,19 @@ import {
   getStudies, 
   getWadoImage 
 } from '../controllers/pacsController';
+import { validateApiKey } from '../middlewares/authMiddleware';
 
 const router = Router();
+
+/**
+ * @swagger
+ * tags:
+ *   - name: PACS
+ *     description: Endpoints de orquestación con el servidor Orthanc (Protegidos por API-Key)
+ */
+
+// APLICAMOS EL MIDDLEWARE A TODAS LAS RUTAS DE ESTE ROUTER
+router.use(validateApiKey);
 
 /**
  * @swagger
