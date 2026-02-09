@@ -30,24 +30,43 @@ export const getStudies = async (_req: Request, res: Response) => {
 };
 
 /**
+ * Obtiene la lista de IDs de instancias para un estudio específico.
+ */
+export const getStudyInstances = async (req: Request, res: Response) => {
+  const studyId = req.params.studyId as string;
+  
+  try {
+    const instances = await OrthancService.getStudyInstances(studyId);
+    res.json({ status: 'success', data: instances });
+  } catch (error) {
+    logger.error(`Error al obtener instancias para el estudio ${studyId}:`, error);
+    res.status(500).json({ status: 'error', message: 'Error al obtener instancias del estudio' });
+  }
+};
+
+/**
  * Endpoint WADO Proxy: Entrega la imagen DICOM al frontend.
- * Se ha corregido el tipado para asegurar que instanceId sea tratado como string.
  */
 export const getWadoImage = async (req: Request, res: Response) => {
-  // Forzamos el tipo a string para evitar el error 'string | string[]'
+  // CORRECCIÓN: Forzamos el tipo a string
   const instanceId = req.params.instanceId as string;
   
   try {
     logger.info(`Proxying DICOM instance: ${instanceId}`);
     const streamResponse = await OrthancService.getInstanceFileStream(instanceId);
 
-    // Indicamos al navegador que lo que viene es un archivo DICOM
     res.setHeader('Content-Type', 'application/dicom');
+    res.setHeader('Content-Disposition', `attachment; filename="${instanceId}.dcm"`);
     
-    // Conectamos el stream de Orthanc directamente a la respuesta
     streamResponse.data.pipe(res);
+
+    streamResponse.data.on('error', (err: any) => {
+      logger.error(`Stream error para instancia ${instanceId}:`, err);
+      res.end();
+    });
+
   } catch (error) {
-    logger.error(`Proxy error para instancia ${instanceId}`);
+    logger.error(`Proxy error para instancia ${instanceId}:`, error);
     res.status(404).json({ status: 'error', message: 'Imagen médica no encontrada' });
   }
 };
