@@ -3,6 +3,7 @@ import {
   getPacsInfo, 
   getPatients, 
   getStudies, 
+  getStudyInstances, 
   getWadoImage 
 } from '../controllers/pacsController';
 import { validateApiKey } from '../middlewares/authMiddleware';
@@ -59,6 +60,26 @@ router.get('/patients', getPatients);
  *         description: Lista de estudios expandida
  */
 router.get('/studies', getStudies);
+
+/**
+ * @swagger
+ * /api/pacs/studies/{studyId}/instances:
+ *   get:
+ *     summary: Obtiene la lista de IDs de instancias de un estudio
+ *     tags:
+ *       - PACS
+ *     parameters:
+ *       - in: path
+ *         name: studyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID del estudio en Orthanc
+ *     responses:
+ *       200:
+ *         description: Lista de IDs de instancias
+ */
+router.get('/studies/:studyId/instances', getStudyInstances);
 
 /**
  * @swagger
