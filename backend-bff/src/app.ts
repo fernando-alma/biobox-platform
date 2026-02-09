@@ -11,19 +11,33 @@ import { errorHandler } from './middlewares/errorHandler';
 const app: Application = express();
 
 // --- Middlewares de Seguridad y Utilidad ---
-app.use(helmet());       // 1. Headers de seguridad HTTP
-app.use(cors());         // 2. Permitir peticiones externas
+
+// 1. Headers de seguridad HTTP (Ajustado para permitir Swagger UI en desarrollo)
+app.use(helmet({
+    contentSecurityPolicy: false, // Desactivamos CSP temporalmente para no bloquear los estilos de Swagger
+}));
+
+// 2. CONFIGURACIÓN DE CORS (Crítico para que el navegador acepte el x-api-key)
+app.use(cors({
+    origin: '*', // Permite peticiones desde cualquier origen (luego lo cerraremos)
+    allowedHeaders: ['Content-Type', 'x-api-key'], // <--- ESTO ES LO QUE FALTA PARA SWAGGER/FRONT
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+}));
+
+// 3. Logger de peticiones
 app.use(morgan('combined', {
     stream: { write: (message) => logger.info(message.trim()) }
-}));  // 3. Logger de peticiones
-app.use(express.json()); // 4. Parser para recibir JSON en el body
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec)); // 5. Documentación Swagger
+}));
+
+app.use(express.json()); // 4. Parser para recibir JSON
+
+// 5. Documentación Swagger
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // --- Rutas ---
-// Rutas de Negocio
 app.use('/api/pacs', pacsRoutes);
 
-// Healthcheck: Para que Docker o AWS sepan que estamos vivos
+// Healthcheck
 app.get('/api/health', (req: Request, res: Response) => {
     res.status(200).json({
         status: 'success',
@@ -34,4 +48,5 @@ app.get('/api/health', (req: Request, res: Response) => {
 });
 
 app.use(errorHandler);
+
 export default app;

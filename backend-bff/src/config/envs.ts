@@ -16,7 +16,7 @@ export const envs = {
   },
 
   // Llave de seguridad para peticiones entre Front y Back
-  apiKey: process.env.API_KEY || 'biobox_default_secret',
+  apiKey: process.env.API_KEY || 'biobox_secret_token_2024',
   
   logLevel: process.env.LOG_LEVEL || 'info',
 };

@@ -25,6 +25,8 @@ router.use(validateApiKey);
  * /api/pacs/system:
  *   get:
  *     summary: Obtiene estado del servidor Orthanc
+ *     security:          
+ *       - ApiKeyAuth: [] 
  *     tags:
  *       - PACS
  *     responses:
@@ -40,6 +42,8 @@ router.get('/system', getPacsInfo);
  * /api/pacs/patients:
  *   get:
  *     summary: Lista todos los pacientes
+ *     security:
+ *       - ApiKeyAuth: []
  *     tags:
  *       - PACS
  *     responses:
@@ -53,6 +57,8 @@ router.get('/patients', getPatients);
  * /api/pacs/studies:
  *   get:
  *     summary: Lista todos los estudios disponibles en el PACS
+ *     security:
+ *       - ApiKeyAuth: []
  *     tags:
  *       - PACS
  *     responses:
@@ -66,6 +72,8 @@ router.get('/studies', getStudies);
  * /api/pacs/studies/{studyId}/instances:
  *   get:
  *     summary: Obtiene la lista de IDs de instancias de un estudio
+ *     security:
+ *       - ApiKeyAuth: []
  *     tags:
  *       - PACS
  *     parameters:
@@ -86,6 +94,8 @@ router.get('/studies/:studyId/instances', getStudyInstances);
  * /api/pacs/wado/instance/{instanceId}:
  *   get:
  *     summary: Obtiene el archivo DICOM binario mediante proxy
+ *     security:
+ *       - ApiKeyAuth: []
  *     tags:
  *       - PACS
  *     parameters:

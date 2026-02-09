@@ -1,10 +1,6 @@
 import swaggerJsdoc from 'swagger-jsdoc';
 import { envs } from './envs';
 
-/**
- * Configuración maestra de Swagger (OpenAPI 3.0)
- * RUTA: backend-bff/src/config/swagger.ts
- */
 const options: swaggerJsdoc.Options = {
   definition: {
     openapi: '3.0.0',
@@ -25,6 +21,11 @@ const options: swaggerJsdoc.Options = {
         description: 'Endpoints de orquestación con el servidor Orthanc',
       },
     ],
+    security: [
+      {
+        ApiKeyAuth: [],
+      },
+    ],
     components: {
       securitySchemes: {
         ApiKeyAuth: {
@@ -40,5 +41,4 @@ const options: swaggerJsdoc.Options = {
 
 const swaggerSpec = swaggerJsdoc(options);
 
-// Exportación por defecto para simplificar el import
 export default swaggerSpec;
