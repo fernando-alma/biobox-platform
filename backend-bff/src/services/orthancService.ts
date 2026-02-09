@@ -52,11 +52,31 @@ export class OrthancService {
   }
 
   /**
+   * Obtiene todas las instancias (imágenes) asociadas a un estudio.
+   * Útil para que el visor sepa qué archivos pedir.
+   */
+  static async getStudyInstances(studyId: string) {
+    try {
+      logger.info(`Obteniendo instancias para el estudio: ${studyId}`);
+      const { data } = await this.client.get(`/studies/${studyId}/instances`);
+      return data;
+    } catch (error) {
+      logger.error(`Error al obtener instancias del estudio ${studyId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Proxy binario: Obtiene el archivo DICOM como un flujo de datos (stream)
    */
   static async getInstanceFileStream(instanceId: string) {
-    return await this.client.get(`/instances/${instanceId}/file`, {
-      responseType: 'stream',
-    });
+    try {
+      return await this.client.get(`/instances/${instanceId}/file`, {
+        responseType: 'stream',
+      });
+    } catch (error) {
+      logger.error(`Error al obtener el stream de la instancia ${instanceId}:`, error);
+      throw error;
+    }
   }
 }
