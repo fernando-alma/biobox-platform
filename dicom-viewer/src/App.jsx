@@ -427,7 +427,7 @@ const handleSelectStudyFromList = async (study) => {
         <input type="file" multiple accept=".dcm, application/dicom" ref={fileInputRef} onChange={handleManualUpload} className="hidden" />
 
         {showTags && activeImageId && (
-            <TagBrowser tags={extractDicomTags(activeImageId)} onClose={() => setShowTags(false)} />
+            <TagBrowser imageId={activeImageId} onClose={() => setShowTags(false)} />
         )}
 
         <Header 
