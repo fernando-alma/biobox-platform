@@ -125,6 +125,14 @@ const handleSelectStudyFromList = async (study) => {
     }
   };
 
+  // --- FUNCIÓN PARA VOLVER AL LISTADO ---
+  const handleBackToList = () => {
+    setViewMode("list");
+    setImages([]); // Liberamos memoria al limpiar las imágenes
+    setMeasurements([]); // Opcional: limpiar mediciones al salir
+    console.log("Volviendo al panel de gestión");
+  };
+
   // ==========================================
   // CARGA DE IMÁGENES (LOCAL / DROP)
   // ==========================================
@@ -430,7 +438,7 @@ const handleSelectStudyFromList = async (study) => {
             totalImages={images.length}
             onTriggerFile={() => fileInputRef.current.click()}
             onShowTags={() => setShowTags(true)}
-            onGoBack={() => setViewMode("list")} // <--- NUEVA ACCIÓN PARA VOLVER
+            onGoBack={handleBackToList} // <--- NUEVA ACCIÓN PARA VOLVER
         />
 
         <div className="flex-1 flex overflow-hidden relative">
