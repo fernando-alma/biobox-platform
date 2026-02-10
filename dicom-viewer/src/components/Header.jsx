@@ -18,37 +18,29 @@ const Header = ({
   return (
     <header className="bg-gray-900 border-b border-blue-900/30 px-6 py-3 flex items-center justify-between z-50 shadow-lg">
       
-      {/* 1. LOGO O BOTÓN DE RETROCESO */}
-      <div className="flex items-center gap-6">
-        {isListView ? (
-          // Si es la lista, mostramos el Logo
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-600/20 rounded-lg">
-              <Activity className="w-6 h-6 text-blue-500" />
-            </div>
-            <div>
-              <h1 className="text-xl font-black text-white tracking-tighter uppercase leading-none">BioBox Med</h1>
-              <p className="text-[10px] text-gray-400 font-mono tracking-widest">PACS SYSTEM</p>
-            </div>
-          </div>
-        ) : (
-          // Si es el visor, mostramos botón de VOLVER
-          <button 
-            onClick={onGoBack}
-            className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-black rounded-lg transition-all border border-gray-700 group"
-          >
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> 
-            VOLVER AL PANEL
-          </button>
-        )}
-
-        <button 
-          onClick={onTriggerFile}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-black rounded-lg transition-all shadow-lg hover:shadow-blue-500/20 active:scale-95 border border-blue-400/20"
-        >
-          <Upload className="w-4 h-4" /> ABRIR ESTUDIO
-        </button>
+{/* 1. LOGO O BOTÓN DE RETROCESO */}
+<div className="flex items-center gap-6">
+  {isListView ? (
+    <div className="flex items-center gap-3">
+      <div className="p-2 bg-blue-600/20 rounded-lg">
+        <Activity className="w-6 h-6 text-blue-500" />
       </div>
+      <div>
+        <h1 className="text-xl font-black text-white tracking-tighter uppercase leading-none">BioBox Med</h1>
+        <p className="text-[10px] text-gray-400 font-mono tracking-widest">PACS SYSTEM</p>
+      </div>
+    </div>
+  ) : (
+    <button 
+      onClick={onGoBack}
+      className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white text-[10px] font-black rounded-lg transition-all border border-gray-700 group"
+    >
+      <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> 
+      VOLVER AL PANEL
+    </button>
+  )}
+  {/* EL BOTÓN DE UPLOAD QUE ESTABA AQUÍ HA SIDO ELIMINADO */}
+</div>
 
       {/* 2. INFO PACIENTE */}
       <div className="hidden md:flex flex-col items-center text-center">

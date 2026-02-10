@@ -14,7 +14,7 @@ import Header from "./components/Header";
 import ThumbnailStrip from "./components/ThumbnailStrip";
 import MprViewer from "./components/MprViewer";
 import ReportModal from "./components/ReportModal"; 
-import StudyList from "./components/StudyList"; // <--- INTEGRADO
+import StudyList from "./components/StudyList";
 
 // Utils
 import initCornerstone from "./utils/initCornerstone";
@@ -35,7 +35,7 @@ function App() {
   // --- ESTADOS DE DATOS ---
   const [images, setImages] = useState([]);
   const [patientInfo, setPatientInfo] = useState({ name: "Sin Estudio", id: "---" });
-  const [viewMode, setViewMode] = useState("list"); // 'list' o 'viewer' <--- NUEVO CONTROL DE VISTA
+  const [viewMode, setViewMode] = useState("list"); 
 
   // --- ESTADOS DE VISTA ---
   const [grid, setGrid] = useState({ rows: 1, cols: 1 });
@@ -46,7 +46,6 @@ function App() {
   const [activeTool, setActiveTool] = useState(TOOLS.NONE);
   const [measurements, setMeasurements] = useState([]);
   
-  // Valores visuales
   const [zoom, setZoom] = useState(100);
   const [brightness, setBrightness] = useState(100);
   const [contrast, setContrast] = useState(100);
@@ -54,7 +53,7 @@ function App() {
   const [rotation, setRotation] = useState(0);
   const [colormap, setColormap] = useState('gray');
 
-  // --- ESTADOS PARA REPORTE PDF (EVIDENCIA CLÍNICA) ---
+  // --- ESTADOS PARA REPORTE PDF ---
   const [clinicalEvidence, setClinicalEvidence] = useState([]); 
   const [showReportModal, setShowReportModal] = useState(false);
 
@@ -71,8 +70,7 @@ function App() {
   // ==========================================
   // LÓGICA DE SELECCIÓN DESDE EL PACS (REMOTO)
   // ==========================================
-const handleSelectStudyFromList = async (study) => {
-    // 1. Limpieza inicial
+  const handleSelectStudyFromList = async (study) => {
     setImages([]);
     setMeasurements([]);
     setClinicalEvidence([]);
@@ -86,28 +84,20 @@ const handleSelectStudyFromList = async (study) => {
     setViewMode("viewer");
 
     try {
-      // 2. Obtener los IDs de las instancias (imágenes)
       const response = await axios.get(`http://localhost:3000/api/pacs/studies/${study.ID}/instances`, {
         headers: { 'x-api-key': import.meta.env.VITE_API_KEY }
       });
 
-      // IMPORTANTE: Orthanc a veces devuelve objetos, nosotros solo queremos el ID (string)
       const instanceData = response.data.data;
-      
-      // Mapeamos asegurándonos de extraer solo el ID si es un objeto, o el string directamente
       const instanceIds = instanceData.map(item => typeof item === 'object' ? item.ID : item);
 
-      // 3. CONFIGURACIÓN GLOBAL DE SEGURIDAD PARA CORNERSTONE
-      // Esto hace que CADA pedazo de imagen que Cornerstone pida lleve la llave
       cornerstoneWADOImageLoader.configure({
         beforeSend: function(xhr) {
           xhr.setRequestHeader('x-api-key', import.meta.env.VITE_API_KEY);
         }
       });
 
-      // 4. Crear la lista de imágenes para el visor
       const remoteImagesList = instanceIds.map((id, index) => ({
-        // Usamos el ID limpio para construir la URL
         imageId: `wadouri:http://localhost:3000/api/pacs/wado/instance/${id}`,
         name: `Capa ${index + 1}`,
         instanceNumber: index
@@ -125,11 +115,10 @@ const handleSelectStudyFromList = async (study) => {
     }
   };
 
-  // --- FUNCIÓN PARA VOLVER AL LISTADO ---
   const handleBackToList = () => {
     setViewMode("list");
-    setImages([]); // Liberamos memoria al limpiar las imágenes
-    setMeasurements([]); // Opcional: limpiar mediciones al salir
+    setImages([]); 
+    setMeasurements([]); 
     console.log("Volviendo al panel de gestión");
   };
 
@@ -137,7 +126,7 @@ const handleSelectStudyFromList = async (study) => {
   // CARGA DE IMÁGENES (LOCAL / DROP)
   // ==========================================
   const handleNewImagesFromDrop = (newImagesList) => {
-    setViewMode("viewer"); // Asegurar que cambie a visor al soltar archivos
+    setViewMode("viewer");
     loadImagesIntoViewer(newImagesList);
   };
 
@@ -148,7 +137,7 @@ const handleSelectStudyFromList = async (study) => {
         const imageId = cornerstoneWADOImageLoader.wadouri.fileManager.add(file);
         return { imageId, name: file.name, instanceNumber: 0 };
     });
-    setViewMode("viewer"); // Asegurar que cambie a visor al subir archivos
+    setViewMode("viewer"); 
     loadImagesIntoViewer(newImagesList);
   };
 
@@ -159,7 +148,7 @@ const handleSelectStudyFromList = async (study) => {
     setMeasurements([]); 
     setIsMprMode(false);
     setVolume(null);
-    setClinicalEvidence([]); // Limpiar evidencias al cargar nuevo paciente
+    setClinicalEvidence([]); 
 
     const fName = list[0]?.name?.replace('.dcm', '') || "Paciente";
     setPatientInfo({
@@ -174,25 +163,19 @@ const handleSelectStudyFromList = async (study) => {
   const handleScreenshot = async () => {
     const activeId = isMprMode ? "mpr-container" : `viewport-${activeViewportId}`;
     
-    // Feedback de carga visual
     const loadingToast = document.createElement("div");
     loadingToast.innerText = "⏳ Procesando evidencia...";
     loadingToast.className = "fixed top-10 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-lg z-[999] shadow-xl text-sm font-bold border border-gray-600";
     document.body.appendChild(loadingToast);
 
-    // 1. Capturar la imagen visual
     const dataUrl = await takeSnapshot(activeId);
-    
-    // Retirar feedback de carga
     document.body.removeChild(loadingToast);
     
     if (dataUrl) {
-        // 2. Filtrar mediciones asociadas a esta vista
         const relatedMeasurements = measurements.filter(m => 
             isMprMode ? true : m.imageIndex === viewportIndices[activeViewportId]
         );
 
-        // 3. Crear el objeto "Evidencia"
         const newEvidence = {
             id: Date.now(),
             image: dataUrl,
@@ -200,10 +183,8 @@ const handleSelectStudyFromList = async (study) => {
             comments: ""
         };
 
-        // 4. Guardar en el estado
         setClinicalEvidence(prev => [...prev, newEvidence]);
         
-        // Feedback visual de éxito
         const notification = document.createElement("div");
         notification.className = "fixed bottom-10 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-3 rounded-full shadow-2xl z-[100] font-bold animate-bounce";
         notification.innerText = `📸 Evidencia Guardada (${relatedMeasurements.length} datos)`;
@@ -283,9 +264,6 @@ const handleSelectStudyFromList = async (study) => {
       }
   };
 
-  // ==========================================
-  // PRESETS Y RESET
-  // ==========================================
   const handleApplyPreset = (centerVal, widthVal) => {
     if (centerVal === 40 && widthVal === 80) { 
         setBrightness(100); setContrast(40); 
@@ -307,7 +285,6 @@ const handleSelectStudyFromList = async (study) => {
       setColormap('gray');
   };
 
-  // Lógica de Reproducción CINE
   useEffect(() => {
     let interval;
     if (isCinePlaying && images.length > 1) {
@@ -325,37 +302,124 @@ const handleSelectStudyFromList = async (study) => {
   }, [isCinePlaying, images, activeViewportId]);
 
   // ==========================================
-  // RENDER CONDICIONAL
+  // RENDER FINAL CON CORRECCIÓN DE INPUT
   // ==========================================
+  const activeImageIndex = viewportIndices[activeViewportId] || 0;
+  const activeImageId = images[activeImageIndex]?.imageId;
 
-// 1. MODO LISTADO (PANTALLA DE INICIO)
-  if (viewMode === "list") {
-    return (
-      <div className="flex h-screen w-screen bg-black overflow-hidden flex-col text-white font-sans">
-        <Header 
-            patientData={{ name: "Panel de Gestión BioBox", id: "PACS v1.0" }}
-            currentLayout={grid} // <--- AGREGAMOS ESTO PARA QUE NO EXPLOTE
-            onLayoutChange={handleLayoutChange} // <--- AGREGAMOS ESTO
-            isListView={true} 
-        />
-        <StudyList onSelectStudy={handleSelectStudyFromList} />
-      </div>
-    );
-  }
+  return (
+    <DragDropZone onNewImages={handleNewImagesFromDrop}>
+      {/* 🔴 INPUT GLOBAL: Ahora fuera de los condicionales para que siempre exista en el DOM */}
+      <input 
+        type="file" 
+        multiple 
+        accept=".dcm, application/dicom" 
+        ref={fileInputRef} 
+        onChange={handleManualUpload} 
+        className="hidden" 
+      />
 
-  // MODO MPR (TU LÓGICA ORIGINAL)
-  if (isMprMode) {
-      return (
+      {/* --- MODO LISTADO --- */}
+      {viewMode === "list" && (
+        <div className="flex h-screen w-screen bg-black overflow-hidden flex-col text-white font-sans">
+          <Header 
+              patientData={{ name: "Panel de Gestión BioBox", id: "PACS v1.0" }}
+              currentLayout={grid} 
+              onLayoutChange={handleLayoutChange} 
+              isListView={true} 
+          />
+          <StudyList 
+              onSelectStudy={handleSelectStudyFromList} 
+              onTriggerFile={() => fileInputRef.current.click()} 
+          />
+        </div>
+      )}
+
+      {/* --- MODO VISOR --- */}
+      {viewMode === "viewer" && !isMprMode && (
+        <div className="flex h-screen w-screen bg-black overflow-hidden font-sans flex-col text-white">
+          {showReportModal && (
+              <ReportModal 
+                  patientInfo={patientInfo}
+                  clinicalEvidence={clinicalEvidence}
+                  setClinicalEvidence={setClinicalEvidence}
+                  onClose={() => setShowReportModal(false)}
+                  onGenerate={handleGeneratePDF}
+              />
+          )}
+
+          {showTags && activeImageId && (
+              <TagBrowser imageId={activeImageId} onClose={() => setShowTags(false)} />
+          )}
+
+          <Header 
+              patientData={patientInfo}
+              currentLayout={grid}
+              onLayoutChange={handleLayoutChange}
+              activeIndex={activeImageIndex}
+              totalImages={images.length}
+              onTriggerFile={() => fileInputRef.current.click()}
+              onShowTags={() => setShowTags(true)}
+              onGoBack={handleBackToList}
+          />
+
+          <div className="flex-1 flex overflow-hidden relative">
+              <Toolbar 
+                  activeTool={activeTool} 
+                  onToolChange={setActiveTool}
+                  onClearMeasurements={() => setMeasurements([])}
+                  onRotate={() => setRotation(r => r + 90)}
+                  onReset={handleReset}
+                  zoom={zoom} onZoomChange={setZoom}
+                  isCinePlaying={isCinePlaying} onToggleCine={() => setIsCinePlaying(!isCinePlaying)}
+                  onApplyPreset={handleApplyPreset}
+                  onOpenTags={() => setShowTags(true)}
+                  onOpenMpr={handleStartMpr}
+                  onScreenshot={handleScreenshot}
+                  onOpenReport={() => setShowReportModal(true)}
+              />
+
+              {images.length > 0 && (
+                  <ThumbnailStrip images={images} activeIndex={viewportIndices[activeViewportId]} onSelectImage={jumpToImage} />
+              )}
+
+              <main className="flex-1 bg-gray-950 relative overflow-hidden" onWheel={handleWheel}>
+                  {images.length > 0 ? (
+                      <div className="w-full h-full grid gap-1 bg-gray-900 p-1" style={{ gridTemplateColumns: `repeat(${grid.cols}, 1fr)`, gridTemplateRows: `repeat(${grid.rows}, 1fr)` }}>
+                          {[...Array(grid.rows * grid.cols)].map((_, i) => (
+                              <div key={i} id={`viewport-${i}`} onClick={() => setActiveViewportId(i)} className={`relative w-full h-full bg-black overflow-hidden transition-all duration-200 ${activeViewportId === i ? 'border-2 border-blue-500 z-10 shadow-lg shadow-blue-500/20' : 'border border-gray-800 opacity-90'}`}>
+                                  <div className={`absolute top-2 right-2 z-40 text-[9px] px-1.5 py-0.5 rounded font-bold pointer-events-none ${activeViewportId === i ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-500'}`}>PANEL {i + 1}</div>
+                                  <DicomViewer images={images} activeIndex={viewportIndices[i] || 0} zoom={zoom} brightness={brightness} contrast={contrast} invert={invert} colormap={colormap} activeTool={activeViewportId === i ? activeTool : TOOLS.NONE} measurements={measurements} setMeasurements={setMeasurements} onLevelsChange={(c, w) => { setBrightness(c); setContrast(w); }} />
+                              </div>
+                          ))}
+                      </div>
+                  ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-gray-600 space-y-6">
+                          <div className="w-24 h-24 bg-gray-900 border-2 border-gray-800 rounded-full flex items-center justify-center animate-pulse"><span className="text-5xl filter grayscale">🩻</span></div>
+                          <div className="text-center">
+                              <h2 className="text-2xl font-bold text-gray-300">Cargando Estudio Remoto</h2>
+                              <p className="text-sm text-gray-500 italic">Sincronizando capas desde el servidor BioBox...</p>
+                          </div>
+                          <button onClick={() => setViewMode("list")} className="px-6 py-2 bg-gray-800 text-white rounded-lg">VOLVER AL PANEL</button>
+                      </div>
+                  )}
+              </main>
+
+              <aside className="w-72 bg-gray-900 border-l border-gray-800 flex flex-col shadow-2xl">
+                  <div className="p-4 border-b border-gray-800">
+                      <ImageControls zoom={zoom} onZoomChange={setZoom} brightness={brightness} onBrightnessChange={setBrightness} contrast={contrast} onContrastChange={setContrast} colormap={colormap} onColormapChange={setColormap} onReset={handleReset} />
+                  </div>
+                  <div className="flex-1 overflow-y-auto custom-scrollbar">
+                      <MeasurementsPanel measurements={measurements} activeIndex={viewportIndices[activeViewportId]} setMeasurements={setMeasurements} patientInfo={patientInfo} />
+                  </div>
+              </aside>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODO MPR --- */}
+      {isMprMode && viewMode === "viewer" && (
         <div className="w-full h-screen bg-black flex flex-col font-sans text-white overflow-hidden">
-            {showReportModal && (
-                <ReportModal 
-                    patientInfo={patientInfo}
-                    clinicalEvidence={clinicalEvidence}
-                    setClinicalEvidence={setClinicalEvidence}
-                    onClose={() => setShowReportModal(false)}
-                    onGenerate={handleGeneratePDF}
-                />
-            )}
             <div className="flex justify-between items-center p-3 border-b border-gray-800 bg-gray-900">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-blue-600 rounded-lg"><Layers className="w-5 h-5"/></div>
@@ -403,96 +467,7 @@ const handleSelectStudyFromList = async (study) => {
                 ) : null}
             </div>
         </div>
-      );
-  }
-
-  // MODO VISOR ESTÁNDAR (TU LÓGICA ORIGINAL)
-  const activeImageIndex = viewportIndices[activeViewportId] || 0;
-  const activeImageId = images[activeImageIndex]?.imageId;
-
-  return (
-    <DragDropZone onNewImages={handleNewImagesFromDrop}>
-      <div className="flex h-screen w-screen bg-black overflow-hidden font-sans flex-col text-white">
-        
-        {showReportModal && (
-            <ReportModal 
-                patientInfo={patientInfo}
-                clinicalEvidence={clinicalEvidence}
-                setClinicalEvidence={setClinicalEvidence}
-                onClose={() => setShowReportModal(false)}
-                onGenerate={handleGeneratePDF}
-            />
-        )}
-
-        <input type="file" multiple accept=".dcm, application/dicom" ref={fileInputRef} onChange={handleManualUpload} className="hidden" />
-
-        {showTags && activeImageId && (
-            <TagBrowser imageId={activeImageId} onClose={() => setShowTags(false)} />
-        )}
-
-        <Header 
-            patientData={patientInfo}
-            currentLayout={grid}
-            onLayoutChange={handleLayoutChange}
-            activeIndex={activeImageIndex}
-            totalImages={images.length}
-            onTriggerFile={() => fileInputRef.current.click()}
-            onShowTags={() => setShowTags(true)}
-            onGoBack={handleBackToList} // <--- NUEVA ACCIÓN PARA VOLVER
-        />
-
-        <div className="flex-1 flex overflow-hidden relative">
-            <Toolbar 
-                activeTool={activeTool} 
-                onToolChange={setActiveTool}
-                onClearMeasurements={() => setMeasurements([])}
-                onRotate={() => setRotation(r => r + 90)}
-                onReset={handleReset}
-                zoom={zoom} onZoomChange={setZoom}
-                isCinePlaying={isCinePlaying} onToggleCine={() => setIsCinePlaying(!isCinePlaying)}
-                onApplyPreset={handleApplyPreset}
-                onOpenTags={() => setShowTags(true)}
-                onOpenMpr={handleStartMpr}
-                onScreenshot={handleScreenshot}
-                onOpenReport={() => setShowReportModal(true)}
-            />
-
-            {images.length > 0 && (
-                <ThumbnailStrip images={images} activeIndex={viewportIndices[activeViewportId]} onSelectImage={jumpToImage} />
-            )}
-
-            <main className="flex-1 bg-gray-950 relative overflow-hidden" onWheel={handleWheel}>
-                {images.length > 0 ? (
-                    <div className="w-full h-full grid gap-1 bg-gray-900 p-1" style={{ gridTemplateColumns: `repeat(${grid.cols}, 1fr)`, gridTemplateRows: `repeat(${grid.rows}, 1fr)` }}>
-                        {[...Array(grid.rows * grid.cols)].map((_, i) => (
-                            <div key={i} id={`viewport-${i}`} onClick={() => setActiveViewportId(i)} className={`relative w-full h-full bg-black overflow-hidden transition-all duration-200 ${activeViewportId === i ? 'border-2 border-blue-500 z-10 shadow-lg shadow-blue-500/20' : 'border border-gray-800 opacity-90'}`}>
-                                <div className={`absolute top-2 right-2 z-40 text-[9px] px-1.5 py-0.5 rounded font-bold pointer-events-none ${activeViewportId === i ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-500'}`}>PANEL {i + 1}</div>
-                                <DicomViewer images={images} activeIndex={viewportIndices[i] || 0} zoom={zoom} brightness={brightness} contrast={contrast} invert={invert} colormap={colormap} activeTool={activeViewportId === i ? activeTool : TOOLS.NONE} measurements={measurements} setMeasurements={setMeasurements} onLevelsChange={(c, w) => { setBrightness(c); setContrast(w); }} />
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-gray-600 space-y-6">
-                        <div className="w-24 h-24 bg-gray-900 border-2 border-gray-800 rounded-full flex items-center justify-center animate-pulse"><span className="text-5xl filter grayscale">🩻</span></div>
-                        <div className="text-center">
-                            <h2 className="text-2xl font-bold text-gray-300">Cargando Estudio Remoto</h2>
-                            <p className="text-sm text-gray-500 italic">Sincronizando capas desde el servidor BioBox...</p>
-                        </div>
-                        <button onClick={() => setViewMode("list")} className="px-6 py-2 bg-gray-800 text-white rounded-lg">VOLVER AL PANEL</button>
-                    </div>
-                )}
-            </main>
-
-            <aside className="w-72 bg-gray-900 border-l border-gray-800 flex flex-col shadow-2xl">
-                <div className="p-4 border-b border-gray-800">
-                    <ImageControls zoom={zoom} onZoomChange={setZoom} brightness={brightness} onBrightnessChange={setBrightness} contrast={contrast} onContrastChange={setContrast} colormap={colormap} onColormapChange={setColormap} onReset={handleReset} />
-                </div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    <MeasurementsPanel measurements={measurements} activeIndex={viewportIndices[activeViewportId]} setMeasurements={setMeasurements} patientInfo={patientInfo} />
-                </div>
-            </aside>
-        </div>
-      </div>
+      )}
     </DragDropZone>
   );
 }

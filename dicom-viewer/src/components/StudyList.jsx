@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { User, Calendar, Database, Eye, RefreshCw, AlertCircle} from 'lucide-react';
+import { User, Calendar, Database, Eye, RefreshCw, AlertCircle, Upload } from 'lucide-react';
 
-const StudyList = ({ onSelectStudy }) => {
+const StudyList = ({ onSelectStudy, onTriggerFile }) => {
   const [studies, setStudies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -73,18 +73,32 @@ const StudyList = ({ onSelectStudy }) => {
   return (
     <div className="flex-1 flex flex-col bg-gray-950 p-8 overflow-hidden font-sans">
       <div className="flex justify-between items-end mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Gestión de Estudios</h1>
-          <p className="text-gray-400 italic">Seleccione un estudio para iniciar el análisis radiológico.</p>
-        </div>
-        <button 
-          onClick={fetchStudies}
-          className="p-2 bg-gray-900 hover:bg-gray-800 rounded-full border border-gray-700 transition-transform active:rotate-180 duration-500"
-          title="Refrescar lista"
-        >
-          <RefreshCw className="w-5 h-5 text-gray-300" />
-        </button>
-      </div>
+  <div>
+    <h1 className="text-3xl font-bold text-white mb-2">Gestión de Estudios</h1>
+    <p className="text-gray-400 italic">Seleccione un estudio para iniciar el análisis radiológico.</p>
+  </div>
+  
+  {/* CONTENEDOR DE ACCIONES (REFRESCAR + CARGA LOCAL) */}
+      <div className="flex items-center gap-3">
+<button 
+  onClick={() => {
+    console.log("📂 Abriendo selector de archivos local...");
+    onTriggerFile();
+  }} 
+  className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-[11px] font-black rounded-xl border border-gray-700 transition-all active:scale-95 uppercase tracking-wider"
+>
+  <Upload className="w-4 h-4 text-blue-400" /> IMPORTAR LOCAL
+</button>
+
+    <button 
+      onClick={fetchStudies}
+      className="p-2.5 bg-gray-900 hover:bg-gray-800 rounded-xl border border-gray-700 transition-transform active:rotate-180 duration-500 shadow-lg"
+      title="Refrescar lista del servidor"
+    >
+      <RefreshCw className="w-5 h-5 text-gray-300" />
+    </button>
+    </div>
+      </div> 
 
       <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl flex-1 flex flex-col">
         <div className="overflow-y-auto custom-scrollbar">
