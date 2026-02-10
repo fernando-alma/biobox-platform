@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import cornerstoneWADOImageLoader from "cornerstone-wado-image-loader";
+import axios from "axios";
 import { Upload, Layers } from "lucide-react"; 
 
 // Componentes
@@ -13,6 +14,7 @@ import Header from "./components/Header";
 import ThumbnailStrip from "./components/ThumbnailStrip";
 import MprViewer from "./components/MprViewer";
 import ReportModal from "./components/ReportModal"; 
+import StudyList from "./components/StudyList"; // <--- INTEGRADO
 
 // Utils
 import initCornerstone from "./utils/initCornerstone";
@@ -33,6 +35,7 @@ function App() {
   // --- ESTADOS DE DATOS ---
   const [images, setImages] = useState([]);
   const [patientInfo, setPatientInfo] = useState({ name: "Sin Estudio", id: "---" });
+  const [viewMode, setViewMode] = useState("list"); // 'list' o 'viewer' <--- NUEVO CONTROL DE VISTA
 
   // --- ESTADOS DE VISTA ---
   const [grid, setGrid] = useState({ rows: 1, cols: 1 });
@@ -52,7 +55,7 @@ function App() {
   const [colormap, setColormap] = useState('gray');
 
   // --- ESTADOS PARA REPORTE PDF (EVIDENCIA CLÍNICA) ---
-  const [clinicalEvidence, setClinicalEvidence] = useState([]); // <--- RENOMBRADO
+  const [clinicalEvidence, setClinicalEvidence] = useState([]); 
   const [showReportModal, setShowReportModal] = useState(false);
 
   // --- ESTADOS PARA MPR 3D ---
@@ -66,9 +69,69 @@ function App() {
   const [showTags, setShowTags] = useState(false);
 
   // ==========================================
-  // CARGA DE IMÁGENES
+  // LÓGICA DE SELECCIÓN DESDE EL PACS (REMOTO)
   // ==========================================
-  const handleNewImagesFromDrop = (newImagesList) => loadImagesIntoViewer(newImagesList);
+const handleSelectStudyFromList = async (study) => {
+    // 1. Limpieza inicial
+    setImages([]);
+    setMeasurements([]);
+    setClinicalEvidence([]);
+    
+    setPatientInfo({
+      name: study.PatientMainDicomTags?.PatientName || "Paciente Desconocido",
+      id: study.PatientMainDicomTags?.PatientID || study.ID.substring(0, 8),
+      studyId: study.ID 
+    });
+
+    setViewMode("viewer");
+
+    try {
+      // 2. Obtener los IDs de las instancias (imágenes)
+      const response = await axios.get(`http://localhost:3000/api/pacs/studies/${study.ID}/instances`, {
+        headers: { 'x-api-key': import.meta.env.VITE_API_KEY }
+      });
+
+      // IMPORTANTE: Orthanc a veces devuelve objetos, nosotros solo queremos el ID (string)
+      const instanceData = response.data.data;
+      
+      // Mapeamos asegurándonos de extraer solo el ID si es un objeto, o el string directamente
+      const instanceIds = instanceData.map(item => typeof item === 'object' ? item.ID : item);
+
+      // 3. CONFIGURACIÓN GLOBAL DE SEGURIDAD PARA CORNERSTONE
+      // Esto hace que CADA pedazo de imagen que Cornerstone pida lleve la llave
+      cornerstoneWADOImageLoader.configure({
+        beforeSend: function(xhr) {
+          xhr.setRequestHeader('x-api-key', import.meta.env.VITE_API_KEY);
+        }
+      });
+
+      // 4. Crear la lista de imágenes para el visor
+      const remoteImagesList = instanceIds.map((id, index) => ({
+        // Usamos el ID limpio para construir la URL
+        imageId: `wadouri:http://localhost:3000/api/pacs/wado/instance/${id}`,
+        name: `Capa ${index + 1}`,
+        instanceNumber: index
+      }));
+
+      console.log(`✅ Preparadas ${remoteImagesList.length} imágenes para el visor`);
+      
+      setImages(remoteImagesList);
+      setViewportIndices(Array(9).fill(0));
+
+    } catch (error) {
+      console.error("❌ Error en la carga remota:", error);
+      alert("No se pudo conectar con el servidor de imágenes.");
+      setViewMode("list");
+    }
+  };
+
+  // ==========================================
+  // CARGA DE IMÁGENES (LOCAL / DROP)
+  // ==========================================
+  const handleNewImagesFromDrop = (newImagesList) => {
+    setViewMode("viewer"); // Asegurar que cambie a visor al soltar archivos
+    loadImagesIntoViewer(newImagesList);
+  };
 
   const handleManualUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -77,6 +140,7 @@ function App() {
         const imageId = cornerstoneWADOImageLoader.wadouri.fileManager.add(file);
         return { imageId, name: file.name, instanceNumber: 0 };
     });
+    setViewMode("viewer"); // Asegurar que cambie a visor al subir archivos
     loadImagesIntoViewer(newImagesList);
   };
 
@@ -116,7 +180,6 @@ function App() {
     
     if (dataUrl) {
         // 2. Filtrar mediciones asociadas a esta vista
-        // (Si estamos en 3D guardamos todas, si es 2D solo las del índice actual)
         const relatedMeasurements = measurements.filter(m => 
             isMprMode ? true : m.imageIndex === viewportIndices[activeViewportId]
         );
@@ -124,8 +187,8 @@ function App() {
         // 3. Crear el objeto "Evidencia"
         const newEvidence = {
             id: Date.now(),
-            image: dataUrl,                    // La foto base64
-            measurements: JSON.parse(JSON.stringify(relatedMeasurements)), // Copia de seguridad de los datos
+            image: dataUrl,
+            measurements: JSON.parse(JSON.stringify(relatedMeasurements)), 
             comments: ""
         };
 
@@ -144,7 +207,6 @@ function App() {
   };
 
   const handleGeneratePDF = (findings) => {
-    // Pasar las evidencias complejas al generador
     generateMedicalReport(patientInfo, findings, clinicalEvidence);
     setShowReportModal(false);
   };
@@ -255,16 +317,33 @@ function App() {
   }, [isCinePlaying, images, activeViewportId]);
 
   // ==========================================
-  // RENDER: MODO MPR
+  // RENDER CONDICIONAL
   // ==========================================
+
+// 1. MODO LISTADO (PANTALLA DE INICIO)
+  if (viewMode === "list") {
+    return (
+      <div className="flex h-screen w-screen bg-black overflow-hidden flex-col text-white font-sans">
+        <Header 
+            patientData={{ name: "Panel de Gestión BioBox", id: "PACS v1.0" }}
+            currentLayout={grid} // <--- AGREGAMOS ESTO PARA QUE NO EXPLOTE
+            onLayoutChange={handleLayoutChange} // <--- AGREGAMOS ESTO
+            isListView={true} 
+        />
+        <StudyList onSelectStudy={handleSelectStudyFromList} />
+      </div>
+    );
+  }
+
+  // MODO MPR (TU LÓGICA ORIGINAL)
   if (isMprMode) {
       return (
         <div className="w-full h-screen bg-black flex flex-col font-sans text-white overflow-hidden">
             {showReportModal && (
                 <ReportModal 
                     patientInfo={patientInfo}
-                    clinicalEvidence={clinicalEvidence} // PASAMOS EL NUEVO ESTADO
-                    setClinicalEvidence={setClinicalEvidence} // PASAMOS EL SETTER
+                    clinicalEvidence={clinicalEvidence}
+                    setClinicalEvidence={setClinicalEvidence}
                     onClose={() => setShowReportModal(false)}
                     onGenerate={handleGeneratePDF}
                 />
@@ -319,9 +398,7 @@ function App() {
       );
   }
 
-  // ==========================================
-  // RENDER: VISOR ESTÁNDAR
-  // ==========================================
+  // MODO VISOR ESTÁNDAR (TU LÓGICA ORIGINAL)
   const activeImageIndex = viewportIndices[activeViewportId] || 0;
   const activeImageId = images[activeImageIndex]?.imageId;
 
@@ -332,8 +409,8 @@ function App() {
         {showReportModal && (
             <ReportModal 
                 patientInfo={patientInfo}
-                clinicalEvidence={clinicalEvidence} // PASAMOS EL NUEVO ESTADO
-                setClinicalEvidence={setClinicalEvidence} // PASAMOS EL SETTER
+                clinicalEvidence={clinicalEvidence}
+                setClinicalEvidence={setClinicalEvidence}
                 onClose={() => setShowReportModal(false)}
                 onGenerate={handleGeneratePDF}
             />
@@ -353,6 +430,7 @@ function App() {
             totalImages={images.length}
             onTriggerFile={() => fileInputRef.current.click()}
             onShowTags={() => setShowTags(true)}
+            onGoBack={() => setViewMode("list")} // <--- NUEVA ACCIÓN PARA VOLVER
         />
 
         <div className="flex-1 flex overflow-hidden relative">
@@ -389,10 +467,10 @@ function App() {
                     <div className="h-full flex flex-col items-center justify-center text-gray-600 space-y-6">
                         <div className="w-24 h-24 bg-gray-900 border-2 border-gray-800 rounded-full flex items-center justify-center animate-pulse"><span className="text-5xl filter grayscale">🩻</span></div>
                         <div className="text-center">
-                            <h2 className="text-2xl font-bold text-gray-300">BioBox Diagnostic</h2>
-                            <p className="text-sm text-gray-500">Arrastre estudios o seleccione carpeta</p>
+                            <h2 className="text-2xl font-bold text-gray-300">Cargando Estudio Remoto</h2>
+                            <p className="text-sm text-gray-500 italic">Sincronizando capas desde el servidor BioBox...</p>
                         </div>
-                        <button onClick={() => fileInputRef.current.click()} className="flex items-center gap-3 px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95"><Upload className="w-5 h-5" /> CARGAR ESTUDIO</button>
+                        <button onClick={() => setViewMode("list")} className="px-6 py-2 bg-gray-800 text-white rounded-lg">VOLVER AL PANEL</button>
                     </div>
                 )}
             </main>

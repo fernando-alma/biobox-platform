@@ -11,7 +11,7 @@ const Header = ({
 }) => {
 
   // Helper para pintar el botón activo
-  const isActive = (r, c) => currentLayout.rows === r && currentLayout.cols === c;
+  const isActive = (r, c) => currentLayout?.rows === r && currentLayout?.cols === c;
 
   return (
     <header className="bg-gray-900 border-b border-blue-900/30 px-6 py-3 flex items-center justify-between z-50 shadow-lg">
