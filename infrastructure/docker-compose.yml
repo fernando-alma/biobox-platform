@@ -1,14 +1,37 @@
-
 services:
+  # 1. EL CORE (PACS)
   orthanc:
     image: jodogne/orthanc-plugins
     container_name: biobox-pacs-core
     ports:
-      - "4242:4242"  # Puerto DICOM (Entrada de imágenes desde modalidades)
-      - "8042:8042"  # Puerto HTTP (API REST y WADO)
+      - "4242:4242"
+      - "8042:8042"
     environment:
       - ORTHANC_NAME=BioboxPACS
       - VERBOSE_ENABLED=true
     volumes:
-      - ./orthanc-storage:/var/lib/orthanc/db  # Persistencia de datos (para no perderlos al reiniciar)
+      - ./orthanc-storage:/var/lib/orthanc/db # Fase 3.3 Persistencia
     restart: unless-stopped
+
+  # 2. EL MOTOR (BACKEND BFF)
+  backend-bff:
+    build: 
+      context: ../backend-bff
+    container_name: biobox-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - ORTHANC_URL=http://orthanc:8042
+      - API_KEY=biobox_secret_token_2024
+    depends_on:
+      - orthanc
+
+  # 3. LA INTERFAZ (FRONTEND)
+  dicom-viewer:
+    build:
+      context: ../dicom-viewer
+    container_name: biobox-frontend
+    ports:
+      - "80:80" # Ahora accesible directamente por el puerto 80 (estándar web)
+    depends_on:
+      - backend-bff
