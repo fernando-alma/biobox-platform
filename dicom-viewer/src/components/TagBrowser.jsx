@@ -30,38 +30,52 @@ const TagBrowser = ({ imageId, onClose }) => {
                 setLoading(true);
                 setError(null);
 
-                // 1. Extraer ID de la instancia de la URL (si es wadouri)
+                // --- AJUSTE DE SEGURIDAD: DETECCIÓN DEL MOTOR GLOBAL ---
+                let cornerstone = window.cornerstone;
+                if (!cornerstone) {
+                    await new Promise(resolve => setTimeout(resolve, 200)); // Reintento con margen de 200ms
+                    cornerstone = window.cornerstone;
+                }
+
+                if (!cornerstone) {
+                    throw new Error("El motor Cornerstone no está disponible en el entorno global.");
+                }
+
+                let byteArray;
+
+                // 1. DETERMINAR ORIGEN DE LA IMAGEN
                 const instanceId = imageId.includes('instance/') 
                     ? imageId.split('instance/').pop() 
                     : null;
 
-                let byteArray;
-
                 if (instanceId) {
-                    // CASO REMOTO: Descargamos el archivo DICOM completo para parsearlo
-                    const response = await axios.get(`http://localhost:3000/api/pacs/wado/instance/${instanceId}`, {
+                    // --- CASO REMOTO (PACS) ---
+                    const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+                    const response = await axios.get(`${API_URL}/pacs/wado/instance/${instanceId}`, {
                         headers: { 'x-api-key': import.meta.env.VITE_API_KEY },
                         responseType: 'arraybuffer'
                     });
                     byteArray = new Uint8Array(response.data);
                 } else {
-                    // CASO LOCAL: Intentamos obtenerlo del manager de Cornerstone
-                    const image = window.cornerstone.getImage(imageId);
-                    if (image && image.data) {
+                    // --- CASO LOCAL (BLOB/FILE) ---
+                    // SOLUCIÓN: Usamos loadAndCacheImage para ignorar el estado de los elementos del DOM
+                    // Esto evita el error "element not enabled".
+                    const image = await cornerstone.loadAndCacheImage(imageId);
+                    
+                    if (image && image.data && image.data.byteArray) {
                         byteArray = image.data.byteArray;
+                    } else {
+                        throw new Error("No se pudieron extraer datos binarios del archivo DICOM local.");
                     }
                 }
 
-                if (!byteArray) throw new Error("No se pudo obtener el contenido binario del DICOM.");
+                if (!byteArray) throw new Error("Datos binarios no disponibles.");
 
-                // 2. Parsear con dicomParser
+                // 2. PARSEAR CON DICOM-PARSER
                 const dataSet = dicomParser.parseDicom(byteArray);
                 const extractedTags = [];
 
-                // Recorremos todos los elementos del dataset
                 for (const tag in dataSet.elements) {
-                    const element = dataSet.elements[tag];
-                    // Formatear tag de xGGGGEEEE a GGGG,EEEE
                     const formattedTag = `${tag.substring(1, 5)},${tag.substring(5, 9)}`.toUpperCase();
                     
                     try {
@@ -73,14 +87,14 @@ const TagBrowser = ({ imageId, onClose }) => {
                             });
                         }
                     } catch (e) {
-                        // Algunos tags son binarios y fallan al leerse como string, los saltamos
+                        // Omitir tags de formato binario o secuencias complejas
                     }
                 }
 
                 setTags(extractedTags);
             } catch (err) {
-                console.error("Error en Metadata Sync:", err);
-                setError("Error al leer los metadatos desde el servidor.");
+                console.error("Error en Sincronización de Metadatos:", err);
+                setError(err.message || "Error al leer metadatos técnicos.");
             } finally {
                 setLoading(false);
             }
@@ -115,21 +129,23 @@ const TagBrowser = ({ imageId, onClose }) => {
                     </button>
                 </div>
 
-                {/* Contenido Dinámico */}
+                {/* Contenido */}
                 {loading ? (
                     <div className="flex-1 flex flex-col items-center justify-center space-y-4">
                         <RefreshCw className="w-10 h-10 text-blue-500 animate-spin" />
-                        <p className="text-gray-400 font-mono text-xs uppercase animate-pulse">Sincronizando Metadatos con el PACS...</p>
+                        <p className="text-gray-400 font-mono text-xs uppercase animate-pulse">Analizando Cabeceras DICOM...</p>
                     </div>
                 ) : error ? (
-                    <div className="flex-1 flex flex-col items-center justify-center space-y-4 text-red-500">
+                    <div className="flex-1 flex flex-col items-center justify-center space-y-4 text-red-500 p-6 text-center">
                         <AlertCircle className="w-12 h-12" />
                         <p className="font-mono text-sm uppercase">{error}</p>
-                        <button onClick={onClose} className="px-6 py-2 bg-gray-800 text-white rounded-lg">Cerrar</button>
+                        <p className="text-xs text-gray-600 lowercase italic max-w-md">
+                            Asegúrese de que el archivo sea un objeto DICOM válido y que el visor esté inicializado correctamente.
+                        </p>
+                        <button onClick={onClose} className="mt-4 px-6 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors">Cerrar</button>
                     </div>
                 ) : (
                     <>
-                        {/* Buscador */}
                         <div className="p-4 bg-gray-900/50 border-b border-gray-800">
                             <div className="relative">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500" />
@@ -143,7 +159,6 @@ const TagBrowser = ({ imageId, onClose }) => {
                             </div>
                         </div>
 
-                        {/* Tabla de Tags */}
                         <div className="flex-1 overflow-y-auto custom-scrollbar bg-black">
                             <table className="w-full text-left border-collapse">
                                 <thead className="sticky top-0 bg-gray-900 text-[10px] text-gray-400 uppercase font-black border-b border-gray-800 z-10">
@@ -160,7 +175,7 @@ const TagBrowser = ({ imageId, onClose }) => {
                                             <tr key={i} className="hover:bg-blue-900/10 transition-colors group">
                                                 <td className="p-4 text-blue-500 font-bold">({t.tag})</td>
                                                 <td className="p-4 text-gray-400 font-sans italic">
-                                                    {description || <span className="text-gray-700">Unknown</span>}
+                                                    {description || <span className="text-gray-700">Unknown Tag</span>}
                                                 </td>
                                                 <td className="p-4 text-gray-200 break-all select-all group-hover:text-blue-200">
                                                     {t.value}
@@ -168,6 +183,11 @@ const TagBrowser = ({ imageId, onClose }) => {
                                             </tr>
                                         );
                                     })}
+                                    {filteredTags.length === 0 && (
+                                        <tr>
+                                            <td colSpan="3" className="p-10 text-center text-gray-600 italic">No se encontraron metadatos compatibles.</td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             </table>
                         </div>
